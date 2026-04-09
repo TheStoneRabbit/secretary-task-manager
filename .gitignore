@@ -1,0 +1,110 @@
+# Task Manager - Git Ignore File
+# Excludes sensitive information and generated files
+
+# ==========================================
+# SENSITIVE INFORMATION - DO NOT COMMIT
+# ==========================================
+
+# Calendar sync URL (contains private calendar token)
+.calendar_sync_url
+
+# Downloaded calendar files (may contain private events)
+calendar.ics
+calendar_backup.md
+
+# Email folder - contains confidential communications
+emails/
+
+# Current work folder - contains work-in-progress and potentially sensitive documents
+current-work/
+
+# Notes folder - contains meeting notes, PDFs, and sensitive documents
+notes/
+
+# Data exports (may contain private info)
+Coursera\ Courses/**/*.csv
+Coursera\ Courses/**/*.xlsx
+Coursera\ Courses/**/*.json
+
+# Any credentials or API keys
+*.key
+*.pem
+*.p12
+**/credentials.json
+**/secrets.json
+# Environment config (but keep the example)
+.env
+.env.*
+!.env.example
+
+# ==========================================
+# GENERATED FILES
+# ==========================================
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.ruff_cache/
+
+# Generated HTML files (can be regenerated)
+deadline_dashboard.html
+current-work/*.html
+emails/drafts/*.html
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# ==========================================
+# KEEP THESE FILES (exceptions)
+# ==========================================
+
+# Keep README files
+!emails/README.md
+!current-work/README.md
+!README.md
+
+# Keep documentation
+!QUICK_REFERENCE.md
+
+# Keep the meeting agenda markdown (source files)
+!current-work/*_Meeting_Agenda_*.md
+
+# ==========================================
+# NOTES
+# ==========================================
+
+# This gitignore protects:
+# 1. Private calendar URLs and calendar data
+# 2. Email PDFs and attachments with confidential info
+# 3. Work documents (Excel, Word, PDF) that may contain sensitive data
+# 4. Credentials, API keys, and secrets
+# 5. Generated files that can be recreated
+
+# What gets committed:
+# - Source code (Python scripts)
+# - Documentation (README, markdown guides)
+# - Task structure (data/tasks.json without sensitive details)
+# - Calendar structure (data/calendar.json can be committed if you remove private events)
+# - Scripts and automation tools
