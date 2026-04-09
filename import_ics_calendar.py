@@ -204,8 +204,8 @@ class ICSParser:
 
         return rrule(**kwargs)
 
-    def filter_upcoming_events(self, days_ahead=30, days_behind=7):
-        """Filter events within range, expanding recurring events. Includes past events for history."""
+    def filter_upcoming_events(self, days_ahead=30, days_behind=365):
+        """Filter events within range, expanding recurring events. Includes all past events for history."""
         upcoming = []
         cutoff_date = self.today + timedelta(days=days_ahead)
         lookback_date = self.today - timedelta(days=days_behind)

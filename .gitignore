@@ -18,10 +18,14 @@ emails/
 # Current work folder - contains work-in-progress and potentially sensitive documents
 current-work/
 
-# Notes folder - contains meeting notes, PDFs, and sensitive documents
+# Personal notes and priorities
+current-work/MASON*.docx
+current-work/*PRIORITIES*
+
+# Notes folder - contains Yale meeting notes, PDFs, and sensitive documents
 notes/
 
-# Data exports (may contain private info)
+# Coursera data exports (may contain student info)
 Coursera\ Courses/**/*.csv
 Coursera\ Courses/**/*.xlsx
 Coursera\ Courses/**/*.json
@@ -86,10 +90,14 @@ Thumbs.db
 !README.md
 
 # Keep documentation
+!docs/**/*.md
 !QUICK_REFERENCE.md
 
 # Keep the meeting agenda markdown (source files)
 !current-work/*_Meeting_Agenda_*.md
+
+# Keep metadata text files that are templates/examples
+!current-work/ELTI_Carbon_Markets_Certificate_Metadata.txt
 
 # ==========================================
 # NOTES
@@ -99,12 +107,13 @@ Thumbs.db
 # 1. Private calendar URLs and calendar data
 # 2. Email PDFs and attachments with confidential info
 # 3. Work documents (Excel, Word, PDF) that may contain sensitive data
-# 4. Credentials, API keys, and secrets
-# 5. Generated files that can be recreated
+# 4. Student/course data from Coursera
+# 5. Credentials, API keys, and secrets
+# 6. Generated files that can be recreated
 
 # What gets committed:
 # - Source code (Python scripts)
 # - Documentation (README, markdown guides)
-# - Task structure (data/tasks.json without sensitive details)
-# - Calendar structure (data/calendar.json can be committed if you remove private events)
+# - Task structure (tasks.md without sensitive details)
+# - Calendar structure (calendar.md can be committed if you remove private events)
 # - Scripts and automation tools

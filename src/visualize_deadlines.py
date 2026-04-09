@@ -391,6 +391,68 @@ HTML_TEMPLATE = """
             color: #374151;
             border-color: #9CA3AF;
         }
+        .date-filter-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+            padding: 10px 16px;
+            background: #F9FAFB;
+            border: 1px solid #E5E7EB;
+            border-radius: 10px;
+            font-size: 14px;
+            color: #6B7280;
+        }
+        .date-filter-bar label {
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .date-filter-input {
+            padding: 6px 10px;
+            border: 1px solid #D1D5DB;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            color: #374151;
+        }
+        .date-filter-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .date-filter-sep {
+            color: #9CA3AF;
+        }
+        .date-filter-btn {
+            padding: 6px 16px;
+            border-radius: 6px;
+            border: 1px solid #667eea;
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .date-filter-btn:hover {
+            background: rgba(102, 126, 234, 0.2);
+        }
+        .date-filter-btn.clear {
+            border-color: #EF4444;
+            color: #EF4444;
+            background: rgba(239, 68, 68, 0.05);
+        }
+        .date-filter-btn.clear:hover {
+            background: rgba(239, 68, 68, 0.15);
+        }
+
+        .task-card.meeting-completed {
+            opacity: 0.6;
+            border-left-color: #10B981;
+        }
+        .task-badge.completed-meeting {
+            background: #D1FAE5;
+            color: #065F46;
+        }
         
         .task-meta {
             display: flex;
@@ -754,6 +816,44 @@ HTML_TEMPLATE = """
                 });
             });
             
+            // Also search past events from JSON data
+            const pastEventsData = {past_events_json};
+            pastEventsData.forEach(evt => {
+                const searchableText = (evt.title + ' ' + (evt.start_time || '') + ' ' + (evt.details || []).join(' ')).toLowerCase();
+                if (searchableText.includes(searchTerm) && !seenTasks.has(evt.title + evt.date)) {
+                    seenTasks.add(evt.title + evt.date);
+                    const dateObj = new Date(evt.date + 'T12:00:00');
+                    const dayName = '📜 ' + dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+                    const card = document.createElement('div');
+                    card.className = 'task-card priority-high meeting-completed';
+                    let timeStr = evt.start_time ? '⏰ ' + evt.start_time + ' - ' + evt.end_time + ': ' : '';
+                    let detailsHtml = '';
+                    if (evt.details && evt.details.length > 0) {
+                        detailsHtml = '<div class="meeting-details" style="margin-top:8px;">';
+                        evt.details.forEach(d => {
+                            if (d.includes('[') && d.includes('](')) {
+                                const match = d.match(/\[(.+?)\]\((.+?)\)/);
+                                if (match) {
+                                    detailsHtml += '<div>' + d.replace(match[0], '<a href="' + match[2] + '" target="_blank">' + match[1] + '</a>') + '</div>';
+                                } else {
+                                    detailsHtml += '<div>' + d + '</div>';
+                                }
+                            } else {
+                                detailsHtml += '<div>' + d + '</div>';
+                            }
+                        });
+                        detailsHtml += '</div>';
+                    }
+                    card.innerHTML = '<div class="task-title">' + timeStr + evt.title + '</div>' + detailsHtml +
+                        '<div class="task-badges"><span class="task-badge">📅 Meeting</span><span class="task-badge completed-meeting">✅ COMPLETED</span></div>';
+                    matchingTasks.push({
+                        card: card,
+                        dayHeader: dayName
+                    });
+                    totalMatches++;
+                }
+            });
+
             // Display results
             if (matchingTasks.length === 0) {
                 resultsCount.textContent = `No results found for "${searchTerm}"`;
@@ -839,6 +939,113 @@ HTML_TEMPLATE = """
             // Initialize timeline pagination
             initializeTimelinePagination();
         });
+
+        function filterByDate() {
+            const startDate = document.getElementById('dateFilterStart').value;
+            const endDate = document.getElementById('dateFilterEnd').value || startDate;
+
+            if (!startDate) return;
+
+            const resultsContainer = document.getElementById('searchResultsContainer') || document.getElementById('statResultsContainer');
+            const timelineWidget = document.querySelector('.timeline-widget');
+            const timelineSection = document.querySelector('.timeline-section');
+
+            // Use stat results container for date filter display
+            const statContainer = document.getElementById('statResultsContainer');
+            const statContent = document.getElementById('statResultsContent');
+            const statTitle = document.getElementById('statResultsTitle');
+
+            const startObj = new Date(startDate + 'T00:00:00');
+            const endObj = new Date(endDate + 'T23:59:59');
+
+            const startLabel = startObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+            const endLabel = endObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+            statTitle.textContent = startDate === endDate ? '📅 ' + startLabel : '📅 ' + startLabel + ' — ' + endLabel;
+
+            statContent.innerHTML = '';
+            let matchCount = 0;
+
+            // Search upcoming tasks/events from DOM
+            const daySections = document.querySelectorAll('.timeline-section .day-section');
+            daySections.forEach(daySection => {
+                if (!daySection.id || !daySection.id.startsWith('day-')) return;
+                const dateStr = daySection.id.replace('day-', '');
+                if (dateStr >= startDate && dateStr <= endDate) {
+                    const tasks = daySection.querySelectorAll('.task-card');
+                    if (tasks.length > 0) {
+                        const dateObj = new Date(dateStr + 'T12:00:00');
+                        const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+                        const header = document.createElement('div');
+                        header.className = 'day-header';
+                        header.innerHTML = '<span>' + dayName + '</span><span class="day-count">' + tasks.length + ' item' + (tasks.length !== 1 ? 's' : '') + '</span>';
+                        statContent.appendChild(header);
+                        tasks.forEach(card => {
+                            statContent.appendChild(card.cloneNode(true));
+                            matchCount++;
+                        });
+                    }
+                }
+            });
+
+            // Search past events from JSON
+            const pastEventsData = {past_events_json};
+            let pastByDate = {};
+            pastEventsData.forEach(evt => {
+                if (evt.date >= startDate && evt.date <= endDate) {
+                    if (!pastByDate[evt.date]) pastByDate[evt.date] = [];
+                    pastByDate[evt.date].push(evt);
+                }
+            });
+
+            Object.keys(pastByDate).sort().reverse().forEach(dateKey => {
+                const events = pastByDate[dateKey];
+                const dateObj = new Date(dateKey + 'T12:00:00');
+                const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+                const header = document.createElement('div');
+                header.className = 'day-header';
+                header.innerHTML = '<span>📜 ' + dayName + '</span><span class="day-count">' + events.length + ' event' + (events.length !== 1 ? 's' : '') + '</span>';
+                statContent.appendChild(header);
+
+                events.forEach(evt => {
+                    const card = document.createElement('div');
+                    card.className = 'task-card priority-high meeting-completed';
+                    let timeStr = evt.start_time ? '⏰ ' + evt.start_time + ' - ' + evt.end_time + ': ' : '';
+                    let detailsHtml = '';
+                    if (evt.details && evt.details.length > 0) {
+                        detailsHtml = '<div class="meeting-details" style="margin-top:8px;">';
+                        evt.details.forEach(d => {
+                            if (d.includes('[') && d.includes('](')) {
+                                const match = d.match(/\[(.+?)\]\((.+?)\)/);
+                                if (match) {
+                                    detailsHtml += '<div>' + d.replace(match[0], '<a href="' + match[2] + '" target="_blank">' + match[1] + '</a>') + '</div>';
+                                } else { detailsHtml += '<div>' + d + '</div>'; }
+                            } else { detailsHtml += '<div>' + d + '</div>'; }
+                        });
+                        detailsHtml += '</div>';
+                    }
+                    card.innerHTML = '<div class="task-title">' + timeStr + evt.title + '</div>' + detailsHtml +
+                        '<div class="task-badges"><span class="task-badge">📅 Meeting</span><span class="task-badge completed-meeting">✅ COMPLETED</span></div>';
+                    statContent.appendChild(card);
+                    matchCount++;
+                });
+            });
+
+            if (matchCount === 0) {
+                statContent.innerHTML = '<div class="no-tasks">No tasks or events found for this date range</div>';
+            }
+
+            statContainer.classList.add('active');
+            if (timelineWidget) timelineWidget.style.display = 'none';
+            if (timelineSection) timelineSection.style.display = 'none';
+            document.getElementById('dateFilterClear').style.display = '';
+        }
+
+        function clearDateFilter() {
+            document.getElementById('dateFilterStart').value = '';
+            document.getElementById('dateFilterEnd').value = '';
+            document.getElementById('dateFilterClear').style.display = 'none';
+            closeStatResults();
+        }
         
         // Timeline pagination
         let currentWeekOffset = 0;
@@ -957,51 +1164,78 @@ HTML_TEMPLATE = """
 
             // Special handling for past events
             if (filterType === 'past_events') {
-                const pastEvents = {past_events_json};
-                resultsTitle.textContent = '📜 Past Events (Last 7 Days)';
-                resultsContent.innerHTML = '';
+                const allPastEvents = {past_events_json};
+                let pastShowingAll = false;
 
-                if (pastEvents.length === 0) {
-                    resultsContent.innerHTML = '<div class="no-tasks">No past events found</div>';
-                } else {
-                    let currentDate = '';
-                    pastEvents.forEach(evt => {
-                        if (evt.date !== currentDate) {
-                            currentDate = evt.date;
-                            const dateObj = new Date(evt.date + 'T12:00:00');
-                            const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-                            const header = document.createElement('div');
-                            header.className = 'day-header';
-                            header.innerHTML = '<span>📜 ' + dayName + '</span>';
-                            resultsContent.appendChild(header);
-                        }
-                        const card = document.createElement('div');
-                        card.className = 'task-card priority-high';
-                        card.style.opacity = '0.8';
-                        let timeStr = evt.start_time ? '⏰ ' + evt.start_time + ' - ' + evt.end_time + ': ' : '';
-                        let detailsHtml = '';
-                        if (evt.details && evt.details.length > 0) {
-                            detailsHtml = '<div class="meeting-details" style="margin-top:8px;">';
-                            evt.details.forEach(d => {
-                                if (d.includes('[') && d.includes('](')) {
-                                    const match = d.match(/\[(.+?)\]\((.+?)\)/);
-                                    if (match) {
-                                        detailsHtml += '<div>' + d.replace(match[0], '<a href="' + match[2] + '" target="_blank">' + match[1] + '</a>') + '</div>';
+                function renderPastEvents(showAll) {
+                    const today = new Date();
+                    const mondayOffset = today.getDay() === 0 ? 6 : today.getDay() - 1;
+                    const weekStart = new Date(today);
+                    weekStart.setDate(today.getDate() - mondayOffset);
+                    const weekStartStr = weekStart.toISOString().split('T')[0];
+
+                    const filtered = showAll ? allPastEvents : allPastEvents.filter(e => e.date >= weekStartStr);
+
+                    resultsTitle.textContent = showAll ? '📜 All Past Events' : '📜 Past Events (This Week)';
+                    resultsContent.innerHTML = '';
+
+                    // Filter toggle button
+                    const toggleDiv = document.createElement('div');
+                    toggleDiv.style.cssText = 'text-align:center; margin-bottom:16px;';
+                    const toggleBtn = document.createElement('button');
+                    toggleBtn.className = 'stat-filter-button';
+                    toggleBtn.textContent = showAll ? 'This Week Only' : 'Show All';
+                    toggleBtn.style.cssText = 'padding:6px 16px; border-radius:6px; border:1px solid #D1D5DB; background:#F3F4F6; color:#6B7280; cursor:pointer; font-size:13px;';
+                    toggleBtn.onclick = function(e) {
+                        e.stopPropagation();
+                        pastShowingAll = !pastShowingAll;
+                        renderPastEvents(pastShowingAll);
+                    };
+                    toggleDiv.appendChild(toggleBtn);
+                    resultsContent.appendChild(toggleDiv);
+
+                    if (filtered.length === 0) {
+                        resultsContent.innerHTML += '<div class="no-tasks">No past events found</div>';
+                    } else {
+                        let currentDate = '';
+                        filtered.forEach(evt => {
+                            if (evt.date !== currentDate) {
+                                currentDate = evt.date;
+                                const dateObj = new Date(evt.date + 'T12:00:00');
+                                const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+                                const header = document.createElement('div');
+                                header.className = 'day-header';
+                                header.innerHTML = '<span>📜 ' + dayName + '</span>';
+                                resultsContent.appendChild(header);
+                            }
+                            const card = document.createElement('div');
+                            card.className = 'task-card priority-high meeting-completed';
+                            let timeStr = evt.start_time ? '⏰ ' + evt.start_time + ' - ' + evt.end_time + ': ' : '';
+                            let detailsHtml = '';
+                            if (evt.details && evt.details.length > 0) {
+                                detailsHtml = '<div class="meeting-details" style="margin-top:8px;">';
+                                evt.details.forEach(d => {
+                                    if (d.includes('[') && d.includes('](')) {
+                                        const match = d.match(/\[(.+?)\]\((.+?)\)/);
+                                        if (match) {
+                                            detailsHtml += '<div>' + d.replace(match[0], '<a href="' + match[2] + '" target="_blank">' + match[1] + '</a>') + '</div>';
+                                        } else {
+                                            detailsHtml += '<div>' + d + '</div>';
+                                        }
                                     } else {
                                         detailsHtml += '<div>' + d + '</div>';
                                     }
-                                } else {
-                                    detailsHtml += '<div>' + d + '</div>';
-                                }
-                            });
-                            detailsHtml += '</div>';
-                        }
-                        card.innerHTML = '<div class="task-title">' + timeStr + evt.title + '</div>' + detailsHtml +
-                            '<div class="task-badges"><span class="task-badge">📅 Meeting</span></div>';
-                        resultsContent.appendChild(card);
-                    });
+                                });
+                                detailsHtml += '</div>';
+                            }
+                            card.innerHTML = '<div class="task-title">' + timeStr + evt.title + '</div>' + detailsHtml +
+                                '<div class="task-badges"><span class="task-badge">📅 Meeting</span><span class="task-badge completed-meeting">✅ COMPLETED</span></div>';
+                            resultsContent.appendChild(card);
+                        });
+                    }
                 }
 
+                renderPastEvents(false);
                 resultsContainer.classList.add('active');
                 if (timelineWidget) timelineWidget.style.display = 'none';
                 document.querySelector('.timeline-section').style.display = 'none';
@@ -1027,10 +1261,17 @@ HTML_TEMPLATE = """
                     } else if (filterType === 'today') {
                         matches = dayHeader.includes('TODAY');
                     } else if (filterType === 'week') {
-                        // Tasks in next 7 days (excluding overdue and today)
-                        matches = !dayHeader.includes('Overdue') && 
-                                 !dayHeader.includes('Past Due') &&
-                                 daySection.id && daySection.id.startsWith('day-');
+                        // Tasks through end of this week (Sunday)
+                        if (daySection.id && daySection.id.startsWith('day-')) {
+                            const dateStr = daySection.id.replace('day-', '');
+                            const sectionDate = new Date(dateStr + 'T12:00:00');
+                            const today = new Date();
+                            const daysUntilSunday = 6 - today.getDay(); // Sunday=0 becomes 6, Mon=1 becomes 5, etc
+                            const sunday = new Date(today);
+                            sunday.setDate(today.getDate() + (daysUntilSunday === -1 ? 6 : daysUntilSunday));
+                            sunday.setHours(23, 59, 59);
+                            matches = sectionDate <= sunday && !dayHeader.includes('Overdue');
+                        }
                     } else if (filterType === 'blocked') {
                         matches = card.classList.contains('blocked') ||
                                  Array.from(card.querySelectorAll('.task-badge')).some(b => b.textContent.includes('BLOCKED'));
@@ -1178,12 +1419,11 @@ HTML_TEMPLATE = """
                     // Add each task
                     tasks.forEach(task => {
                         const taskCard = document.createElement('div');
-                        taskCard.className = 'task-card';
-                        taskCard.style.borderLeftColor = '#10B981';
-                        
+                        taskCard.className = 'task-card meeting-completed';
+
                         const taskTitle = document.createElement('div');
                         taskTitle.className = 'task-title';
-                        taskTitle.textContent = '✓ ' + task.title;
+                        taskTitle.textContent = '✅ ' + task.title;
                         taskCard.appendChild(taskTitle);
                         
                         const taskMeta = document.createElement('div');
@@ -1202,7 +1442,12 @@ HTML_TEMPLATE = """
                             typeBadge.textContent = task.type;
                             taskMeta.appendChild(typeBadge);
                         }
-                        
+
+                        const completedBadge = document.createElement('span');
+                        completedBadge.className = 'task-badge completed-meeting';
+                        completedBadge.textContent = '✅ COMPLETED';
+                        taskMeta.appendChild(completedBadge);
+
                         taskCard.appendChild(taskMeta);
 
                         // Task details (notes, contacts, action, links)
@@ -1264,6 +1509,14 @@ HTML_TEMPLATE = """
                 <input type="text" id="searchBox" class="search-box" placeholder="🔍 Search tasks and events...">
                 <span class="search-icon">🔍</span>
             </div>
+            <div class="date-filter-bar">
+                <label for="dateFilter">📅 Filter by date:</label>
+                <input type="date" id="dateFilterStart" class="date-filter-input">
+                <span class="date-filter-sep">to</span>
+                <input type="date" id="dateFilterEnd" class="date-filter-input">
+                <button id="dateFilterBtn" class="date-filter-btn" onclick="filterByDate()">Filter</button>
+                <button id="dateFilterClear" class="date-filter-btn clear" onclick="clearDateFilter()" style="display:none;">Clear</button>
+            </div>
             <div id="searchResultsCount" class="search-results-count"></div>
             
             <!-- Search Results Container -->
@@ -1295,10 +1548,6 @@ HTML_TEMPLATE = """
                 <button class="stat-filter-button" id="completedFilterBtn" onclick="toggleCompletedFilter(event)">
                     This Week Only
                 </button>
-            </div>
-            <div class="stat-card past-events" onclick="showStatResults('past_events')">
-                <div class="stat-number">{past_events_count}</div>
-                <div class="stat-label">Past Events</div>
             </div>
         </div>
         
@@ -1581,6 +1830,19 @@ class DeadlineVisualizer:
             if event.get("recurring"):
                 details.append("🔁 Recurring")
 
+            # Check if meeting has ended
+            is_meeting_completed = False
+            end_time_str = event.get("end_time")
+            if end_time_str and event_date == self.today:
+                try:
+                    end_dt = datetime.strptime(f"{event_date} {end_time_str}", "%Y-%m-%d %I:%M %p")
+                    if datetime.now() > end_dt:
+                        is_meeting_completed = True
+                except:
+                    pass
+            elif event_date < self.today:
+                is_meeting_completed = True
+
             # Create event object
             if event_type in ["meeting", "personal"]:
                 meeting_event = {
@@ -1591,6 +1853,7 @@ class DeadlineVisualizer:
                     "type": "meeting",
                     "priority": "high",
                     "is_personal": is_personal,
+                    "is_meeting_completed": is_meeting_completed,
                     "details": details,
                 }
                 self.calendar_events.append(meeting_event)
@@ -1616,6 +1879,7 @@ class DeadlineVisualizer:
                         "project": "🏠 Personal" if is_personal else "📅 Meeting",
                         "type": event["type"],
                         "is_personal": is_personal,
+                        "is_meeting_completed": event.get("is_meeting_completed", False),
                         "start_time": event.get("start_time"),
                         "end_time": event.get("end_time"),
                         "details": event.get("details", []),  # Include meeting details
@@ -1683,9 +1947,14 @@ class DeadlineVisualizer:
 
             days_until = (task["due_date"] - self.today).days
 
-            # Collect past calendar events separately
+            # Collect past calendar events separately (past days + today's completed meetings)
             if task.get("type") == "meeting" and days_until < 0:
                 categorized["past_events"].append(task)
+                continue
+            if task.get("type") == "meeting" and days_until == 0 and task.get("is_meeting_completed"):
+                categorized["past_events"].append(task)
+                # Also keep in today so it shows on the today view with completed badge
+                categorized["today"].append(task)
                 continue
 
             if days_until < 0:
@@ -1770,10 +2039,14 @@ class DeadlineVisualizer:
         overdue_count = len(categorized["overdue"])
         today_count = len(categorized["today"])
 
+        # Calculate days until end of this week (Sunday)
+        days_until_sunday = 6 - self.today.weekday()  # Monday=0, Sunday=6
+        if days_until_sunday == 0:
+            days_until_sunday = 7  # If today is Sunday, show next week
         this_week_count = sum(
             len(tasks)
             for key, tasks in categorized.items()
-            if key.startswith("day_") and int(key.split("_")[1]) <= 7
+            if key.startswith("day_") and int(key.split("_")[1]) <= days_until_sunday
         )
 
         blocked_count = sum(1 for task in self.tasks if task["is_blocked"])
@@ -1942,9 +2215,10 @@ class DeadlineVisualizer:
             personal_class = (
                 "personal-meeting" if task.get("is_personal", False) else ""
             )
+            completed_meeting_class = "meeting-completed" if task.get("is_meeting_completed") else ""
 
             html.append(
-                f'<div class="task-card {priority_class} {blocked_class} {personal_class}">'
+                f'<div class="task-card {priority_class} {blocked_class} {personal_class} {completed_meeting_class}">'
             )
 
             # Add icon and time based on type
@@ -2057,6 +2331,9 @@ class DeadlineVisualizer:
             # Add OVERDUE badge for tasks in the overdue section
             if section_type == "urgent":
                 html.append('<span class="task-badge urgent">🔴 OVERDUE</span>')
+            # Add COMPLETED badge for meetings that have ended
+            if task.get("is_meeting_completed"):
+                html.append('<span class="task-badge completed-meeting">✅ COMPLETED</span>')
             html.append("</div>")
             html.append("</div>")
 

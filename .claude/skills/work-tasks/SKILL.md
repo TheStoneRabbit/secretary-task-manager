@@ -11,6 +11,16 @@ This skill helps track your work tasks and maintains context about ongoing proje
 
 ## CRITICAL RULES
 
+### -1. Read Memory on Skill Start
+
+**EVERY TIME this skill is invoked (/work-tasks), read the memory index FIRST.**
+
+Check for a memory directory at the project-level Claude memory path and read the MEMORY.md index if it exists. Then read any feedback memories relevant to what the user is asking.
+
+**Why:** Memory contains critical feedback about rules you've broken in past conversations. Without reading it, you will repeat the same mistakes. The skill rules tell you WHAT to do. The memory tells you WHERE you've failed before.
+
+**This runs once at skill start, before Rule 0.**
+
 ### 0. ALWAYS Check Current Date and Time First
 
 **CRITICAL: Before answering any questions or performing any task operations (create/move/delete/update), you MUST first check the current date and time.**
